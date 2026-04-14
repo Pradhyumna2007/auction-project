@@ -1,0 +1,33 @@
+{
+  "name": "auction",
+  "version": "1.0.0",
+  "description": "Decentralised Auction System using Hardhat",
+  "type": "module",
+  "scripts": {
+  "compile": "npx hardhat compile",
+  "test": "npx hardhat test",
+  "coverage": "npx hardhat test --coverage",
+  "gas": "npx hardhat test --gas-stats",
+  "node": "npx hardhat node",
+  "deploy:local": "npx hardhat run scripts/deploy.js --network localhost",
+  "deploy:sepolia": "npx hardhat run scripts/deploy.js --network sepolia"
+},
+  "keywords": [
+    "solidity",
+    "hardhat",
+    "auction",
+    "ethereum"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "^4.0.7",
+    "@nomicfoundation/hardhat-toolbox-mocha-ethers": "^3.0.3",
+    "ethers": "^6.16.0",
+    "hardhat": "^3.3.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.6.1",
+    "dotenv": "^17.4.2"
+  }
+}
