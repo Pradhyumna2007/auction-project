@@ -1,18 +1,22 @@
-import { defineConfig } from "hardhat/config";
-import hardhatToolboxMochaEthers from "@nomicfoundation/hardhat-toolbox-mocha-ethers";
-import dotenv from "dotenv";
+require("@nomicfoundation/hardhat-toolbox");
+require("hardhat-gas-reporter");
+require("dotenv").config();
 
-dotenv.config();
+module.exports = {
+  solidity: "0.8.20",
 
-export default defineConfig({
-  plugins: [hardhatToolboxMochaEthers],
-  solidity: "0.8.24",
   networks: {
     sepolia: {
-      type: "http",
-      chainType: "l1",
       url: process.env.SEPOLIA_RPC_URL,
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      accounts: [process.env.PRIVATE_KEY],
     },
   },
-});
+
+  gasReporter: {
+    enabled: true,
+    currency: "USD",
+    token: "ETH",
+    coinmarketcap: process.env.COINMARKETCAP_API_KEY,
+    showTimeSpent: true,
+  },
+};

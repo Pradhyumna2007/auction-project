@@ -6,21 +6,21 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface ReentrancyAttackerInterface extends Interface {
-    getFunction(nameOrSignature: "attackInProgress" | "attackWithdraw" | "auction" | "getBalance" | "placeAttackBid" | "targetAuctionId"): FunctionFragment;
+    getFunction(nameOrSignature: "MAX_ATTACKS" | "attackCount" | "attackWithdraw" | "auction" | "placeAttackBid" | "targetAuctionId"): FunctionFragment;
 
     
 
-    encodeFunctionData(functionFragment: 'attackInProgress', values?: undefined): string;
+    encodeFunctionData(functionFragment: 'MAX_ATTACKS', values?: undefined): string;
+encodeFunctionData(functionFragment: 'attackCount', values?: undefined): string;
 encodeFunctionData(functionFragment: 'attackWithdraw', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'auction', values?: undefined): string;
-encodeFunctionData(functionFragment: 'getBalance', values?: undefined): string;
 encodeFunctionData(functionFragment: 'placeAttackBid', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'targetAuctionId', values?: undefined): string;
 
-    decodeFunctionResult(functionFragment: 'attackInProgress', data: BytesLike): Result;
+    decodeFunctionResult(functionFragment: 'MAX_ATTACKS', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'attackCount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'attackWithdraw', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'auction', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getBalance', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'placeAttackBid', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'targetAuctionId', data: BytesLike): Result;
   }
@@ -61,9 +61,17 @@ decodeFunctionResult(functionFragment: 'targetAuctionId', data: BytesLike): Resu
 
     
     
-    attackInProgress: TypedContractMethod<
+    MAX_ATTACKS: TypedContractMethod<
       [],
-      [boolean],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    attackCount: TypedContractMethod<
+      [],
+      [bigint],
       'view'
     >
     
@@ -80,14 +88,6 @@ decodeFunctionResult(functionFragment: 'targetAuctionId', data: BytesLike): Resu
     auction: TypedContractMethod<
       [],
       [string],
-      'view'
-    >
-    
-
-    
-    getBalance: TypedContractMethod<
-      [],
-      [bigint],
       'view'
     >
     
@@ -111,9 +111,14 @@ decodeFunctionResult(functionFragment: 'targetAuctionId', data: BytesLike): Resu
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
-    getFunction(nameOrSignature: 'attackInProgress'): TypedContractMethod<
+    getFunction(nameOrSignature: 'MAX_ATTACKS'): TypedContractMethod<
       [],
-      [boolean],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'attackCount'): TypedContractMethod<
+      [],
+      [bigint],
       'view'
     >;
 getFunction(nameOrSignature: 'attackWithdraw'): TypedContractMethod<
@@ -124,11 +129,6 @@ getFunction(nameOrSignature: 'attackWithdraw'): TypedContractMethod<
 getFunction(nameOrSignature: 'auction'): TypedContractMethod<
       [],
       [string],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getBalance'): TypedContractMethod<
-      [],
-      [bigint],
       'view'
     >;
 getFunction(nameOrSignature: 'placeAttackBid'): TypedContractMethod<
