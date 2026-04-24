@@ -3,237 +3,153 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-/// @title Decentralized Auction Contract
-/// @notice Allows users to create auctions, place bids, withdraw refunds, and finalize auctions
-/// @dev Uses pull-payment pattern for refunds and ReentrancyGuard for security
+/// @title Auction Contract
+/// @author Pradhyumna
+/// @notice A decentralized auction system with bidding, withdrawal, and time-based closure
+/// @dev Uses pull-over-push payment pattern + reentrancy protection
+
 contract Auction is ReentrancyGuard {
 
-    /// @notice Represents a single auction item
-    /// @param seller Address of the auction creator
-    /// @param highestBidder Address of the current highest bidder
-    /// @param highestBid Current highest bid amount
-    /// @param startingPrice Minimum starting price for bidding
-    /// @param deadline Timestamp when auction ends
-    /// @param ended Whether the auction has been finalized
-    /// @param itemName Name of the item being auctioned
-    /// @param ipfsCID IPFS CID storing item metadata
+    /// @notice Stores all details of an auction item
     struct AuctionItem {
-        address payable seller;
-        address highestBidder;
-        uint256 highestBid;
-        uint256 startingPrice;
-        uint256 deadline;
-        bool ended;
-        string itemName;
-        string ipfsCID;
+        address payable seller;      // Auction creator
+        address highestBidder;      // Current highest bidder
+
+        uint96 highestBid;          // Current highest bid amount (gas optimized)
+        uint96 startingPrice;       // Minimum starting price (gas optimized)
+        uint64 deadline;            // Auction end timestamp (gas optimized)
+
+        bool ended;                 // Whether auction is finalized
+
+        string itemName;            // Name of item (off-chain reference)
+        string ipfsCID;             // IPFS hash for metadata/image
     }
 
     /// @notice Total number of auctions created
     uint256 public auctionCount;
 
-    /// @dev Mapping from auction ID to AuctionItem
-    mapping(uint256 => AuctionItem) private auctions;
+    /// @notice Mapping from auction ID to auction details
+    mapping(uint256 => AuctionItem) public auctions;
 
-    /// @dev Tracks refundable bids per auction per user
-    mapping(uint256 => mapping(address => uint256)) private pendingReturns;
+    /// @notice Tracks refundable bids for each user per auction
+    mapping(uint256 => mapping(address => uint256)) public pendingReturns;
 
     /// @notice Emitted when a new auction is created
-    /// @param auctionId Unique ID of the auction
-    /// @param itemName Name of the item
-    /// @param seller Address of the seller
-    /// @param deadline Auction end time
-    event AuctionCreated(uint256 auctionId, string itemName, address seller, uint256 deadline);
+    event AuctionCreated(uint256 indexed auctionId, address indexed seller);
 
     /// @notice Emitted when a bid is placed
-    /// @param auctionId Auction ID
-    /// @param bidder Address of bidder
-    /// @param amount Bid amount
-    event BidPlaced(uint256 auctionId, address bidder, uint256 amount);
+    event BidPlaced(uint256 indexed auctionId, address indexed bidder, uint256 amount);
 
-    /// @notice Emitted when an auction ends
-    /// @param auctionId Auction ID
-    /// @param winner Address of the winner
-    /// @param amount Final bid amount
-    event AuctionEnded(uint256 auctionId, address winner, uint256 amount);
-
-    /// @notice Emitted when a user withdraws their pending return
-    /// @param auctionId Auction ID
-    /// @param bidder Address of the user
-    /// @param amount Amount withdrawn
-    event BidWithdrawn(uint256 auctionId, address bidder, uint256 amount);
-
-    /*//////////////////////////////////////////////////////////////
-                            CREATE AUCTION
-    //////////////////////////////////////////////////////////////*/
+    /// @notice Emitted when auction ends
+    event AuctionEnded(uint256 indexed auctionId, address indexed winner, uint256 amount);
 
     /// @notice Creates a new auction
-    /// @param itemName Name of the item
-    /// @param ipfsCID IPFS CID for metadata
-    /// @param startingPrice Minimum starting bid
-    /// @param durationSeconds Duration of auction in seconds
-    /// @return id ID of the created auction
+    /// @param _itemName Name of the item being auctioned
+    /// @param _ipfsCID IPFS hash containing metadata or image
+    /// @param _startingPrice Minimum bid required to start auction
+    /// @param _duration Duration of auction in seconds
     function createAuction(
-        string calldata itemName,
-        string calldata ipfsCID,
-        uint256 startingPrice,
-        uint256 durationSeconds
-    ) external returns (uint256 id) {
+        string calldata _itemName,
+        string calldata _ipfsCID,
+        uint256 _startingPrice,
+        uint256 _duration
+    ) external {
 
-        require(bytes(itemName).length > 0, "Item name should not be empty");
-        require(bytes(ipfsCID).length > 0, "IPFS CID should not be empty");
-        require(startingPrice > 0, "Starting price should be greater than 0");
-        require(durationSeconds > 0, "Duration should be greater than 0");
+        require(bytes(_itemName).length > 0, "Item name should not be empty");
+        require(bytes(_ipfsCID).length > 0, "IPFS CID should not be empty");
+        require(_startingPrice > 0, "Starting price should be greater than 0");
+        require(_duration > 0, "Duration should be greater than 0");
 
-        id = ++auctionCount;
+        uint256 id = ++auctionCount;
 
-        AuctionItem storage a = auctions[id];
+        auctions[id] = AuctionItem({
+            seller: payable(msg.sender),
+            highestBidder: address(0),
+            highestBid: 0,
+            startingPrice: uint96(_startingPrice),
+            deadline: uint64(block.timestamp + _duration),
+            ended: false,
+            itemName: _itemName,
+            ipfsCID: _ipfsCID
+        });
 
-        a.seller = payable(msg.sender);
-        a.startingPrice = startingPrice;
-        a.deadline = block.timestamp + durationSeconds;
-        a.itemName = itemName;
-        a.ipfsCID = ipfsCID;
-
-        emit AuctionCreated(id, itemName, msg.sender, a.deadline);
+        emit AuctionCreated(id, msg.sender);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                                BID
-    //////////////////////////////////////////////////////////////*/
+    /// @notice Place a bid on an active auction
+    /// @param _auctionId ID of the auction
+    function placeBid(uint256 _auctionId) external payable nonReentrant {
 
-    /// @notice Places a bid on an auction
-    /// @param auctionId ID of the auction
-    /// @dev Refunds previous highest bidder using pendingReturns mapping
-    function placeBid(uint256 auctionId) external payable {
+        require(_auctionId > 0 && _auctionId <= auctionCount, "Auction does not exist");
 
-        AuctionItem storage a = auctions[auctionId];
+        AuctionItem storage a = auctions[_auctionId];
 
-        require(a.seller != address(0), "Auction does not exist");
         require(!a.ended, "Auction already ended");
+        require(block.timestamp < a.deadline, "Auction already ended");
         require(msg.sender != a.seller, "Seller cannot bid");
-        require(block.timestamp < a.deadline, "Auction has ended");
 
-        uint256 highestBid = a.highestBid;
+        uint256 minBid = a.highestBid > 0 ? a.highestBid : a.startingPrice;
+        require(msg.value > minBid, "Bid must be greater than current highest bid");
 
-        if (highestBid == 0) {
-            require(msg.value >= a.startingPrice, "Bid must be >= starting price");
-        } else {
-            require(msg.value > highestBid, "Bid must be greater than current highest bid");
-        }
-
-        if (a.highestBidder != address(0)) {
-            pendingReturns[auctionId][a.highestBidder] += highestBid;
-        }
+        address prevBidder = a.highestBidder;
+        uint256 prevBid = a.highestBid;
 
         a.highestBidder = msg.sender;
-        a.highestBid = msg.value;
+        a.highestBid = uint96(msg.value);
 
-        emit BidPlaced(auctionId, msg.sender, msg.value);
+        if (prevBidder != address(0)) {
+            pendingReturns[_auctionId][prevBidder] += prevBid;
+        }
+
+        emit BidPlaced(_auctionId, msg.sender, msg.value);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        PENDING RETURNS VIEW
-    //////////////////////////////////////////////////////////////*/
+    /// @notice Withdraw previously outbid funds
+    /// @param _auctionId ID of the auction
+    function withdrawBid(uint256 _auctionId) external nonReentrant {
 
-    /// @notice Returns pending refund amount for a user
-    /// @param auctionId ID of the auction
-    /// @param user Address of the user
-    /// @return Amount available for withdrawal
-    function getPendingReturn(uint256 auctionId, address user)
-        external
-        view
-        returns (uint256)
-    {
-        return pendingReturns[auctionId][user];
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                            WITHDRAW
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Withdraws previously outbid amount
-    /// @param auctionId ID of the auction
-    /// @dev Uses nonReentrant modifier to prevent reentrancy attacks
-    function withdrawBid(uint256 auctionId) external nonReentrant {
-
-        uint256 amount = pendingReturns[auctionId][msg.sender];
-
+        uint256 amount = pendingReturns[_auctionId][msg.sender];
         require(amount > 0, "No refundable amount");
 
-        pendingReturns[auctionId][msg.sender] = 0;
+        pendingReturns[_auctionId][msg.sender] = 0;
 
-        (bool success, ) = msg.sender.call{value: amount}("");
+        (bool success,) = payable(msg.sender).call{value: amount}("");
         require(success, "Transfer failed");
-
-        emit BidWithdrawn(auctionId, msg.sender, amount);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                            END AUCTION
-    //////////////////////////////////////////////////////////////*/
+    /// @notice Ends an auction after deadline
+    /// @param _auctionId ID of the auction
+    function endAuction(uint256 _auctionId) external nonReentrant {
 
-    /// @notice Ends an auction and transfers funds to the seller
-    /// @param auctionId ID of the auction
-    /// @dev Can only be called after deadline
-    function endAuction(uint256 auctionId) external nonReentrant {
+        require(_auctionId > 0 && _auctionId <= auctionCount, "Auction does not exist");
 
-        AuctionItem storage a = auctions[auctionId];
+        AuctionItem storage a = auctions[_auctionId];
 
-        require(a.seller != address(0), "Auction does not exist");
-        require(block.timestamp >= a.deadline, "Auction deadline not reached");
         require(!a.ended, "Auction already ended");
+        require(block.timestamp >= a.deadline, "Auction deadline not reached");
 
         a.ended = true;
 
-        if (a.highestBidder != address(0)) {
-            (bool success, ) = a.seller.call{value: a.highestBid}("");
-            require(success, "Transfer failed");
+        if (a.highestBid > 0) {
+            pendingReturns[_auctionId][a.seller] += a.highestBid;
         }
 
-        emit AuctionEnded(auctionId, a.highestBidder, a.highestBid);
+        emit AuctionEnded(_auctionId, a.highestBidder, a.highestBid);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                                VIEW
-    //////////////////////////////////////////////////////////////*/
+    /// @notice Returns auction details
+    /// @param _auctionId ID of auction
+    /// @return AuctionItem struct containing all auction data
+    function getAuction(uint256 _auctionId) external view returns (AuctionItem memory) {
+        require(_auctionId > 0 && _auctionId <= auctionCount, "Auction does not exist");
+        return auctions[_auctionId];
+    }
 
-    /// @notice Returns details of an auction
-    /// @param auctionId ID of the auction
-    /// @return itemName Name of item
-    /// @return ipfsCID IPFS CID
-    /// @return seller Seller address
-    /// @return highestBid Current highest bid
-    /// @return highestBidder Current highest bidder
-    /// @return startingPrice Starting price
-    /// @return deadline Auction end time
-    /// @return ended Whether auction is finished
-    function getAuction(uint256 auctionId)
-        external
-        view
-        returns (
-            string memory itemName,
-            string memory ipfsCID,
-            address seller,
-            uint256 highestBid,
-            address highestBidder,
-            uint256 startingPrice,
-            uint256 deadline,
-            bool ended
-        )
-    {
-        AuctionItem storage a = auctions[auctionId];
-
-        require(a.seller != address(0), "Auction does not exist");
-
-        return (
-            a.itemName,
-            a.ipfsCID,
-            a.seller,
-            a.highestBid,
-            a.highestBidder,
-            a.startingPrice,
-            a.deadline,
-            a.ended
-        );
+    /// @notice Returns refundable balance for a user in an auction
+    /// @param _auctionId ID of auction
+    /// @param user Address of bidder
+    /// @return refundable amount in wei
+    function getPendingReturn(uint256 _auctionId, address user) external view returns (uint256) {
+        return pendingReturns[_auctionId][user];
     }
 }

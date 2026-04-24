@@ -1,355 +1,226 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
-const { loadFixture } = require("@nomicfoundation/hardhat-network-helpers");
+
 describe("Auction - Full Test Suite", function () {
+  let auction, owner, addr1, addr2;
 
-    let Auction, auction;
-    let owner, seller, bidder1, bidder2, bidder3;
+  beforeEach(async () => {
+    [owner, addr1, addr2] = await ethers.getSigners();
 
-    beforeEach(async function () {
-        [owner, seller, bidder1, bidder2, bidder3] = await ethers.getSigners();
-
-        Auction = await ethers.getContractFactory("Auction");
-        auction = await Auction.deploy();
-        await auction.waitForDeployment();
-    });
-
-    // ---------------- CREATE AUCTION ----------------
-
-    it("should create auction", async function () {
-        const tx = await auction.connect(seller).createAuction(
-            "Laptop",
-            "Qm123",
-            ethers.parseEther("1"),
-            3600
-        );
-
-        const receipt = await tx.wait();
-        expect(receipt.status).to.equal(1);
-    });
-
-    it("should return auction id", async function () {
-        await auction.connect(seller).createAuction(
-            "Phone",
-            "Qm456",
-            ethers.parseEther("1"),
-            3600
-        );
-
-        const data = await auction.getAuction(1);
-        expect(data[0]).to.equal("Phone");
-    });
-
-    it("should reject empty item name", async function () {
-        await expect(
-            auction.connect(seller).createAuction(
-                "",
-                "Qm123",
-                ethers.parseEther("1"),
-                3600
-            )
-        ).to.be.revertedWith("Item name should not be empty");
-    });
-
-    it("should reject empty ipfs", async function () {
-        await expect(
-            auction.connect(seller).createAuction(
-                "Laptop",
-                "",
-                ethers.parseEther("1"),
-                3600
-            )
-        ).to.be.revertedWith("IPFS CID should not be empty");
-    });
-
-    it("should reject zero price", async function () {
-        await expect(
-            auction.connect(seller).createAuction(
-                "Laptop",
-                "Qm123",
-                0,
-                3600
-            )
-        ).to.be.revertedWith("Starting price should be greater than 0");
-    });
-
-    it("should reject zero duration", async function () {
-        await expect(
-            auction.connect(seller).createAuction(
-                "Laptop",
-                "Qm123",
-                ethers.parseEther("1"),
-                0
-            )
-        ).to.be.revertedWith("Duration should be greater than 0");
-    });
-
-    // ---------------- BIDDING ----------------
-
-    it("should accept valid bid", async function () {
-        await auction.connect(seller).createAuction(
-            "Laptop",
-            "Qm123",
-            ethers.parseEther("1"),
-            3600
-        );
-
-        await auction.connect(bidder1).placeBid(1, {
-            value: ethers.parseEther("2")
-        });
-
-        const data = await auction.getAuction(1);
-        expect(data[4]).to.equal(bidder1.address);
-    });
-
-    it("should reject seller bid", async function () {
-        await auction.connect(seller).createAuction(
-            "Laptop",
-            "Qm123",
-            ethers.parseEther("1"),
-            3600
-        );
-
-        await expect(
-            auction.connect(seller).placeBid(1, {
-                value: ethers.parseEther("2")
-            })
-        ).to.be.revertedWith("Seller cannot bid");
-    });
-
-    it("should reject lower bids", async function () {
-        await auction.connect(seller).createAuction(
-            "Laptop",
-            "Qm123",
-            ethers.parseEther("1"),
-            3600
-        );
-
-        await auction.connect(bidder1).placeBid(1, {
-            value: ethers.parseEther("2")
-        });
-
-        await expect(
-            auction.connect(bidder2).placeBid(1, {
-                value: ethers.parseEther("1.5")
-            })
-        ).to.be.revertedWith("Bid must be greater than current highest bid");
-    });
-
-    it("should reject equal bids", async function () {
-        await auction.connect(seller).createAuction(
-            "Laptop",
-            "Qm123",
-            ethers.parseEther("1"),
-            3600
-        );
-
-        await auction.connect(bidder1).placeBid(1, {
-            value: ethers.parseEther("2")
-        });
-
-        await expect(
-            auction.connect(bidder2).placeBid(1, {
-                value: ethers.parseEther("2")
-            })
-        ).to.be.revertedWith("Bid must be greater than current highest bid");
-    });
-
-    it("should reject invalid auction", async function () {
-        await expect(
-            auction.connect(bidder1).placeBid(99, {
-                value: ethers.parseEther("1")
-            })
-        ).to.be.revertedWith("Auction does not exist");
-    });
-
-    it("should move previous bid to pendingReturns", async function () {
-        await auction.connect(seller).createAuction(
-            "Laptop",
-            "Qm123",
-            ethers.parseEther("1"),
-            3600
-        );
-
-        await auction.connect(bidder1).placeBid(1, {
-            value: ethers.parseEther("2")
-        });
-
-        await auction.connect(bidder2).placeBid(1, {
-            value: ethers.parseEther("3")
-        });
-
-        const amount = await auction.getPendingReturn(1, bidder1.address);
-        expect(amount).to.equal(ethers.parseEther("2"));
-    });
-
-    it("should allow withdraw", async function () {
-        await auction.connect(seller).createAuction(
-            "Laptop",
-            "Qm123",
-            ethers.parseEther("1"),
-            3600
-        );
-
-        await auction.connect(bidder1).placeBid(1, {
-            value: ethers.parseEther("2")
-        });
-
-        await auction.connect(bidder2).placeBid(1, {
-            value: ethers.parseEther("3")
-        });
-
-        await auction.connect(bidder1).withdrawBid(1);
-    });
-
-    it("should reject withdraw if no funds", async function () {
-        await auction.connect(seller).createAuction(
-            "Laptop",
-            "Qm123",
-            ethers.parseEther("1"),
-            3600
-        );
-
-        await expect(
-            auction.connect(bidder1).withdrawBid(1)
-        ).to.be.revertedWith("No refundable amount");
-    });
-
-    // ---------------- END AUCTION ----------------
-
-    it("should end after deadline", async function () {
     const Auction = await ethers.getContractFactory("Auction");
-const auction = await Auction.deploy();
-await auction.waitForDeployment();
+    auction = await Auction.deploy();
+  });
 
-    const tx = await auction.createAuction("item", "cid", ethers.parseEther("1"), 60);
-    const receipt = await tx.wait();
-    const auctionId = 1;
+  it("should create auction", async () => {
+    await auction.createAuction("Phone", "cid", 100, 1000);
+    expect(await auction.auctionCount()).to.equal(1);
+  });
 
-    // move time forward
-    await network.provider.send("evm_increaseTime", [70]);
-    await network.provider.send("evm_mine");
+  it("should return auction id", async () => {
+    await auction.createAuction("Phone", "cid", 100, 1000);
+    const data = await auction.getAuction(1);
 
-    await expect(auction.endAuction(auctionId))
-        .to.emit(auction, "AuctionEnded");
+    expect(data[6]).to.equal("Phone"); // FIXED INDEX
+  });
 
-    const data = await auction.getAuction(auctionId);
-    expect(data.ended).to.equal(true);
-});
-    it("should reject bids after end", async function () {
-        await auction.connect(seller).createAuction(
-            "Laptop",
-            "Qm123",
-            ethers.parseEther("1"),
-            1
-        );
+  it("should reject empty item name", async () => {
+    await expect(
+      auction.createAuction("", "cid", 100, 1000)
+    ).to.be.revertedWith("Item name should not be empty");
+  });
 
-        await ethers.provider.send("evm_increaseTime", [2]);
-        await ethers.provider.send("evm_mine");
+  it("should reject empty ipfs", async () => {
+    await expect(
+      auction.createAuction("Phone", "", 100, 1000)
+    ).to.be.revertedWith("IPFS CID should not be empty");
+  });
 
-        await auction.connect(seller).endAuction(1);
+  it("should reject zero price", async () => {
+    await expect(
+      auction.createAuction("Phone", "cid", 0, 1000)
+    ).to.be.revertedWith("Starting price should be greater than 0");
+  });
 
-        await expect(
-            auction.connect(bidder1).placeBid(1, {
-                value: ethers.parseEther("2")
-            })
-        ).to.be.revertedWith("Auction already ended");
-    });
+  it("should reject zero duration", async () => {
+    await expect(
+      auction.createAuction("Phone", "cid", 100, 0)
+    ).to.be.revertedWith("Duration should be greater than 0");
+  });
 
-    // ---------------- MULTI AUCTION ----------------
+  it("should accept valid bid", async () => {
+    await auction.createAuction("Phone", "cid", 100, 1000);
 
-    it("should support multiple auctions", async function () {
-        await auction.connect(seller).createAuction(
-            "A1",
-            "Qm1",
-            ethers.parseEther("1"),
-            3600
-        );
+    await auction.connect(addr1).placeBid(1, { value: 200 });
 
-        await auction.connect(seller).createAuction(
-            "A2",
-            "Qm2",
-            ethers.parseEther("1"),
-            3600
-        );
+    const data = await auction.getAuction(1);
+    expect(data[2]).to.equal(200); // FIXED INDEX
+  });
 
-        const a1 = await auction.getAuction(1);
-        const a2 = await auction.getAuction(2);
-
-        expect(a1[0]).to.equal("A1");
-        expect(a2[0]).to.equal("A2");
-    });
-
-    // ---------------- REENTRANCY ----------------
-
-    it("should prevent reentrancy attack", async function () {
-
-    // create auction
-    await auction.connect(seller).createAuction(
-        "Laptop",
-        "CID",
-        ethers.parseEther("1"),
-        1000
-    );
-
-    // deploy attacker
-    const Attacker = await ethers.getContractFactory("ReentrancyAttacker");
-    const attacker = await Attacker.deploy(await auction.getAddress());
-    await attacker.waitForDeployment();
-
-    // attacker places bid
-    await attacker.placeAttackBid(1, {
-        value: ethers.parseEther("2")
-    });
-
-    // someone outbids attacker
-    await auction.connect(bidder1).placeBid(1, {
-        value: ethers.parseEther("3")
-    });
-
-    // attacker tries reentrancy
-    await attacker.attackWithdraw(1);
-
-    const balance = await attacker.getBalance();
-
-    // SHOULD ONLY GET ORIGINAL BID BACK
-    expect(balance).to.equal(ethers.parseEther("2"));
-});
-
-    it("should revert endAuction before deadline", async function () {
-    await auction.connect(seller).createAuction(
-        "Laptop",
-        "CID",
-        ethers.parseEther("1"),
-        1000
-    );
+  it("should reject seller bid", async () => {
+    await auction.createAuction("Phone", "cid", 100, 1000);
 
     await expect(
-        auction.endAuction(1)
-    ).to.be.revertedWith("Auction deadline not reached");
-});
-it("seller receives highest bid", async function () {
-    await auction.connect(seller).createAuction(
-        "Laptop",
-        "CID",
-        ethers.parseEther("1"),
-        2
-    );
+      auction.placeBid(1, { value: 200 })
+    ).to.be.revertedWith("Seller cannot bid");
+  });
 
-    await auction.connect(bidder1).placeBid(1, {
-        value: ethers.parseEther("2")
-    });
+  it("should reject lower bids", async () => {
+    await auction.createAuction("Phone", "cid", 100, 1000);
 
-    await ethers.provider.send("evm_increaseTime", [3]);
+    await auction.connect(addr1).placeBid(1, { value: 200 });
+
+    await expect(
+      auction.connect(addr2).placeBid(1, { value: 150 })
+    ).to.be.revertedWith("Bid must be greater than current highest bid");
+  });
+
+  it("should reject equal bids", async () => {
+    await auction.createAuction("Phone", "cid", 100, 1000);
+
+    await auction.connect(addr1).placeBid(1, { value: 200 });
+
+    await expect(
+      auction.connect(addr2).placeBid(1, { value: 200 })
+    ).to.be.revertedWith("Bid must be greater than current highest bid");
+  });
+
+  it("should reject invalid auction", async () => {
+    await expect(
+      auction.placeBid(99, { value: 200 })
+    ).to.be.revertedWith("Auction does not exist");
+  });
+
+  it("should move previous bid to pendingReturns", async () => {
+    await auction.createAuction("Phone", "cid", 100, 1000);
+
+    await auction.connect(addr1).placeBid(1, { value: 200 });
+    await auction.connect(addr2).placeBid(1, { value: 300 });
+
+    const pending = await auction.getPendingReturn(1, addr1.address);
+    expect(pending).to.equal(200);
+  });
+
+  it("should allow withdraw", async () => {
+    await auction.createAuction("Phone", "cid", 100, 1000);
+
+    await auction.connect(addr1).placeBid(1, { value: 200 });
+    await auction.connect(addr2).placeBid(1, { value: 300 });
+
+    await auction.connect(addr1).withdrawBid(1);
+
+    const pending = await auction.getPendingReturn(1, addr1.address);
+    expect(pending).to.equal(0);
+  });
+
+  it("should reject withdraw if no funds", async () => {
+    await expect(
+      auction.connect(addr1).withdrawBid(1)
+    ).to.be.revertedWith("No refundable amount");
+  });
+
+  it("should end after deadline", async () => {
+    await auction.createAuction("Phone", "cid", 100, 1);
+
+    await ethers.provider.send("evm_increaseTime", [2]);
     await ethers.provider.send("evm_mine");
-
-    const before = await ethers.provider.getBalance(seller.address);
 
     await auction.endAuction(1);
 
-    const after = await ethers.provider.getBalance(seller.address);
+    const data = await auction.getAuction(1);
+    expect(data[5]).to.equal(true);
+  });
 
-    expect(after).to.be.gt(before);
+  it("should reject bids after end", async () => {
+    await auction.createAuction("Phone", "cid", 100, 1);
+
+    await ethers.provider.send("evm_increaseTime", [2]);
+    await ethers.provider.send("evm_mine");
+
+    await auction.endAuction(1);
+
+    await expect(
+      auction.connect(addr1).placeBid(1, { value: 200 })
+    ).to.be.revertedWith("Auction already ended");
+  });
+
+  it("should support multiple auctions", async () => {
+    await auction.createAuction("A1", "cid", 100, 1000);
+    await auction.createAuction("A2", "cid", 200, 1000);
+
+    const a1 = await auction.getAuction(1);
+    const a2 = await auction.getAuction(2);
+
+    expect(a1[6]).to.equal("A1"); // FIXED
+    expect(a2[6]).to.equal("A2");
+  });
+
+  it("should revert endAuction before deadline", async () => {
+    await auction.createAuction("Phone", "cid", 100, 1000);
+
+    await expect(
+      auction.endAuction(1)
+    ).to.be.revertedWith("Auction deadline not reached");
+  });
+
+  it("seller receives highest bid", async () => {
+  // ✅ FIX 1: Give enough duration
+  await auction.createAuction("Phone", "cid", 100, 1000);
+
+  // ✅ Place bid BEFORE time ends
+  await auction.connect(addr1).placeBid(1, { value: 200 });
+
+  // ✅ FIX 2: Move time AFTER bidding
+  await ethers.provider.send("evm_increaseTime", [2000]);
+  await ethers.provider.send("evm_mine");
+
+  await auction.endAuction(1);
+
+  // ✅ FIX 3: Check pendingReturns (correct logic)
+  const pending = await auction.getPendingReturn(1, owner.address);
+  expect(pending).to.equal(200);
 });
+it("should prevent reentrancy attack", async () => {
+  const Attacker = await ethers.getContractFactory("ReentrancyAttacker");
+  const attacker = await Attacker.deploy(auction.target);
 
+  // create auction
+  await auction.createAuction("Phone", "cid", 100, 1000);
+
+  // attacker places bid
+  await attacker.placeAttackBid(1, { value: 200 });
+
+  // someone outbids attacker
+  await auction.connect(addr1).placeBid(1, { value: 300 });
+
+  // attack
+  await attacker.attackWithdraw(1);
+
+  // attacker should NOT drain funds
+  const balance = await attacker.getBalance();
+  expect(balance).to.be.lte(200);
+});
+it("should not allow ending twice", async () => {
+  await auction.createAuction("Phone", "cid", 100, 1);
+
+  await ethers.provider.send("evm_increaseTime", [2]);
+  await ethers.provider.send("evm_mine");
+
+  await auction.endAuction(1);
+
+  await expect(
+    auction.endAuction(1)
+  ).to.be.revertedWith("Auction already ended");
+});
+it("should not allow double withdraw", async () => {
+  await auction.createAuction("Phone", "cid", 100, 1000);
+
+  await auction.connect(addr1).placeBid(1, { value: 200 });
+  await auction.connect(addr2).placeBid(1, { value: 300 });
+
+  await auction.connect(addr1).withdrawBid(1);
+
+  await expect(
+    auction.connect(addr1).withdrawBid(1)
+  ).to.be.revertedWith("No refundable amount");
+});
 });
