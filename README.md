@@ -186,33 +186,23 @@ Comprehensive Hardhat automated test suite implemented for contract functionalit
 3.Should reject empty IPFS hash
 4.Should reject zero starting price
 5.Should reject zero duration
-
-#Bidding Logic
-Should accept valid bid
-6.Should reject seller bidding on own auction
-7.Should reject bids lower than current highest
-8.Should reject equal bids
-9.Should reject bids for invalid auction
-10.Should reject first bid below starting price
-11.Should move previous highest bid to pendingReturns
-
-#Withdrawals
-12.Should allow withdrawal of pending returns
-13.Should reject withdrawal when no funds available
-14.Should not allow double withdrawal
-
-#Auction Ending
-15.Should end auction after deadline
-16.Should revert endAuction before deadline
-17.Should not allow ending auction twice
-18.Seller receives highest bid after auction ends
-19.Should reject bids after auction ends
-
-#Multiple Auctions
-20.Should support multiple auctions simultaneously
-
-#Security
-21.Should prevent reentrancy attack
+6.Should accept valid bid
+7.Should reject seller bidding on own auction
+8.Should reject bids lower than current highest
+9.Should reject equal bids
+10.Should reject bids for invalid auction
+11.Should reject first bid below starting price
+12.Should move previous highest bid to pendingReturns
+13.Should allow withdrawal of pending returns
+14.Should reject withdrawal when no funds available
+15.Should not allow double withdrawal
+16.Should end auction after deadline
+17.Should revert endAuction before deadline
+18.Should not allow ending auction twice
+19.Seller receives highest bid after auction ends
+10.Should reject bids after auction ends
+21.Should support multiple auctions simultaneously
+22.Should prevent reentrancy attack
 
 ---
 
