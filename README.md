@@ -178,29 +178,40 @@ Comprehensive Hardhat automated test suite implemented for contract functionalit
 
 ### **Total Test Cases:** 21
 
-### **Implemented Test Cases**
-1.Should create auction
-2.Should return auction ID
-3.Should reject empty IPFS hash
-4.Should reject zero starting price
-5.Should reject zero duration
-6.Should accept valid bid
-7.Should reject seller bidding on own auction
-8.Should reject bids lower than current highest
-9.Should reject equal bids
-10.Should reject bids for invalid auction
-11.Should reject first bid below starting price
-12.Should move previous highest bid to pendingReturns
-13.Should allow withdrawal of pending returns
-14.Should reject withdrawal when no funds available
-15.Should not allow double withdrawal
-16.Should end auction after deadline
-17.Should revert endAuction before deadline
-18.Should not allow ending auction twice
-19.Seller receives highest bid after auction ends
-10.Should reject bids after auction ends
-21.Should support multiple auctions simultaneously
-22.Should prevent reentrancy attack
+### Test Cases Covered
+
+1. Should create auction  
+2. Should return auction ID  
+3. Should reject empty IPFS hash  
+4. Should reject zero starting price  
+5. Should reject zero duration  
+
+#### 🧾 Bidding Logic
+6. Should accept valid bid  
+7. Should reject seller bidding on own auction  
+8. Should reject bids lower than current highest  
+9. Should reject equal bids  
+10. Should reject bids for invalid auction  
+11. Should reject first bid below starting price  
+12. Should move previous highest bid to pendingReturns  
+
+#### 💰 Withdrawals
+13. Should allow withdrawal of pending returns  
+14. Should reject withdrawal when no funds available  
+15. Should not allow double withdrawal  
+
+#### ⏱ Auction Ending
+16. Should end auction after deadline  
+17. Should revert endAuction before deadline  
+18. Should not allow ending auction twice  
+19. Seller receives highest bid after auction ends  
+20. Should reject bids after auction ends  
+
+#### 🔁 Multiple Auctions
+21. Should support multiple auctions simultaneously  
+
+#### 🔐 Security
+22. Should prevent reentrancy attack  
 
 ---
 
