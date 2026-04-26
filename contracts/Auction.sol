@@ -3,11 +3,6 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-/// @title Auction Contract
-/// @author Pradhyumna
-/// @notice A decentralized auction system with bidding, withdrawal, and time-based closure
-/// @dev Uses pull-over-push payment pattern + reentrancy protection
-
 contract Auction is ReentrancyGuard {
 
     /// @notice Stores all details of an auction item
@@ -21,7 +16,7 @@ contract Auction is ReentrancyGuard {
 
         bool ended;                 // Whether auction is finalized
 
-        string itemName;            // Name of item (off-chain reference)
+        
         string ipfsCID;             // IPFS hash for metadata/image
     }
 
@@ -44,18 +39,18 @@ contract Auction is ReentrancyGuard {
     event AuctionEnded(uint256 indexed auctionId, address indexed winner, uint256 amount);
 
     /// @notice Creates a new auction
-    /// @param _itemName Name of the item being auctioned
+    
     /// @param _ipfsCID IPFS hash containing metadata or image
     /// @param _startingPrice Minimum bid required to start auction
     /// @param _duration Duration of auction in seconds
     function createAuction(
-        string calldata _itemName,
+        
         string calldata _ipfsCID,
         uint256 _startingPrice,
         uint256 _duration
     ) external {
 
-        require(bytes(_itemName).length > 0, "Item name should not be empty");
+       
         require(bytes(_ipfsCID).length > 0, "IPFS CID should not be empty");
         require(_startingPrice > 0, "Starting price should be greater than 0");
         require(_duration > 0, "Duration should be greater than 0");
@@ -69,7 +64,7 @@ contract Auction is ReentrancyGuard {
             startingPrice: uint96(_startingPrice),
             deadline: uint64(block.timestamp + _duration),
             ended: false,
-            itemName: _itemName,
+           
             ipfsCID: _ipfsCID
         });
 
@@ -80,28 +75,32 @@ contract Auction is ReentrancyGuard {
     /// @param _auctionId ID of the auction
     function placeBid(uint256 _auctionId) external payable nonReentrant {
 
-        require(_auctionId > 0 && _auctionId <= auctionCount, "Auction does not exist");
+    require(_auctionId > 0 && _auctionId <= auctionCount, "Auction does not exist");
 
-        AuctionItem storage a = auctions[_auctionId];
+    AuctionItem storage a = auctions[_auctionId];
 
-        require(!a.ended, "Auction already ended");
-        require(block.timestamp < a.deadline, "Auction already ended");
-        require(msg.sender != a.seller, "Seller cannot bid");
+    require(!a.ended, "Auction already ended");
+    require(block.timestamp < a.deadline, "Auction already ended");
+    require(msg.sender != a.seller, "Seller cannot bid");
 
-        uint256 minBid = a.highestBid > 0 ? a.highestBid : a.startingPrice;
-        require(msg.value > minBid, "Bid must be greater than current highest bid");
+    // ✅ FIXED LOGIC
+    if (a.highestBid == 0) {
+        require(msg.value >= a.startingPrice, "First bid must be >= starting price");
+    } else {
+        require(msg.value > a.highestBid, "Bid must be greater than current highest bid");
+    }
 
-        address prevBidder = a.highestBidder;
-        uint256 prevBid = a.highestBid;
+    address prevBidder = a.highestBidder;
+    uint256 prevBid = a.highestBid;
 
-        a.highestBidder = msg.sender;
-        a.highestBid = uint96(msg.value);
+    a.highestBidder = msg.sender;
+    a.highestBid = uint96(msg.value);
 
-        if (prevBidder != address(0)) {
-            pendingReturns[_auctionId][prevBidder] += prevBid;
-        }
+    if (prevBidder != address(0)) {
+        pendingReturns[_auctionId][prevBidder] += prevBid;
+    }
 
-        emit BidPlaced(_auctionId, msg.sender, msg.value);
+    emit BidPlaced(_auctionId, msg.sender, msg.value);
     }
 
     /// @notice Withdraw previously outbid funds
