@@ -180,28 +180,39 @@ Comprehensive Hardhat automated test suite implemented for contract functionalit
 
 ### **Implemented Test Cases**
 
-1. Create auction successfully  
-2. Return correct auction details  
-3. Reject empty item name  
-4. Reject empty IPFS CID  
-5. Reject zero starting price  
-6. Reject zero duration  
-7. Accept valid bid  
-8. Reject seller self-bid  
-9. Reject lower bid  
-10. Reject equal bid  
-11. Reject invalid auction ID  
-12. Move previous highest bid to pendingReturns  
-13. Allow withdraw refund  
-14. Reject withdraw when no funds exist  
-15. End auction after deadline  
-16. Reject bids after auction ended  
-17. Support multiple auctions  
-18. Reject ending before deadline  
-19. Credit seller after successful ending  
-20. Prevent reentrancy attack  
-21. Prevent ending auction twice  
-22. Prevent double withdrawal
+##Test Cases Covered
+1.Should create auction
+2.Should return auction ID
+3.Should reject empty IPFS hash
+4.Should reject zero starting price
+5.Should reject zero duration
+
+#Bidding Logic
+Should accept valid bid
+6.Should reject seller bidding on own auction
+7.Should reject bids lower than current highest
+8.Should reject equal bids
+9.Should reject bids for invalid auction
+10.Should reject first bid below starting price
+11.Should move previous highest bid to pendingReturns
+
+#Withdrawals
+12.Should allow withdrawal of pending returns
+13.Should reject withdrawal when no funds available
+14.Should not allow double withdrawal
+
+#Auction Ending
+15.Should end auction after deadline
+16.Should revert endAuction before deadline
+17.Should not allow ending auction twice
+18.Seller receives highest bid after auction ends
+19.Should reject bids after auction ends
+
+#Multiple Auctions
+20.Should support multiple auctions simultaneously
+
+#Security
+21.Should prevent reentrancy attack
 
 ---
 
