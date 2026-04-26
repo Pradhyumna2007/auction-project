@@ -164,8 +164,8 @@ uint64 deadline;
 
 | Function | Before | After |
 |----------|--------|-------|
-| createAuction() | _(Add Value)_ | _(Add Value)_ |
-| placeBid() | _(Add Value)_ | _(Add Value)_ |
+| createAuction() | 142102 | 116609 |
+| placeBid() | 76472 | 58107 |
 
 ### **Why It Improved**
 
