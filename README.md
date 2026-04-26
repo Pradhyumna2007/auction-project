@@ -179,8 +179,6 @@ Comprehensive Hardhat automated test suite implemented for contract functionalit
 ### **Total Test Cases:** 21
 
 ### **Implemented Test Cases**
-
-##Test Cases Covered
 1.Should create auction
 2.Should return auction ID
 3.Should reject empty IPFS hash
