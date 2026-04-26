@@ -186,7 +186,7 @@ Comprehensive Hardhat automated test suite implemented for contract functionalit
 4. Should reject zero starting price  
 5. Should reject zero duration  
 
-#### 🧾 Bidding Logic
+#### Bidding Logic
 6. Should accept valid bid  
 7. Should reject seller bidding on own auction  
 8. Should reject bids lower than current highest  
@@ -195,22 +195,22 @@ Comprehensive Hardhat automated test suite implemented for contract functionalit
 11. Should reject first bid below starting price  
 12. Should move previous highest bid to pendingReturns  
 
-#### 💰 Withdrawals
+#### Withdrawals
 13. Should allow withdrawal of pending returns  
 14. Should reject withdrawal when no funds available  
 15. Should not allow double withdrawal  
 
-#### ⏱ Auction Ending
+#### Auction Ending
 16. Should end auction after deadline  
 17. Should revert endAuction before deadline  
 18. Should not allow ending auction twice  
 19. Seller receives highest bid after auction ends  
 20. Should reject bids after auction ends  
 
-#### 🔁 Multiple Auctions
+#### Multiple Auctions
 21. Should support multiple auctions simultaneously  
 
-#### 🔐 Security
+#### Security
 22. Should prevent reentrancy attack  
 
 ---
